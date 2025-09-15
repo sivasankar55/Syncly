@@ -1,5 +1,6 @@
 import { connectDB } from "./db.js";
 import { Inngest } from "inngest";
+import User from "../config/db.js";
 
 // Create a client to send and receive events
 export const inngest = new Inngest({ id: "Syncly" });
@@ -28,6 +29,7 @@ const syncUser = inngest.createFunction(
     {id:"delete-user-from-db"},
     {event:"clerk/user.deleted"},
     async({event}) => {
+        await connectDB();
         const {id} = event.data;
         await User.deleteOne({clerkId: id});
         await deleteStreamUser(id,toString());
