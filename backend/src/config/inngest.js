@@ -1,6 +1,7 @@
 import { connectDB } from "./db.js";
 import { Inngest } from "inngest";
 import {User} from "../models/user.model.js"
+import { deleteStreamUser, upsetStreamUser } from "./stream.js";
 
 // Create a client to send and receive events
 export const inngest = new Inngest({ id: "Syncly" });
@@ -21,7 +22,12 @@ const syncUser = inngest.createFunction(
         };
 
         await User.create(newUser);
-        // more in later
+        
+        await upsetStreamUser({
+         id: newUser.clerkId.toString(),
+         name: newUser.name,
+         image: newUser.image,   
+        })
     }
 );
 
@@ -32,7 +38,8 @@ const syncUser = inngest.createFunction(
         await connectDB();
         const {id} = event.data;
         await User.deleteOne({clerkId: id});
-        //more in later
+        
+        await deleteStreamUser(id.toString());
     }
  );
 // Create an empty array where we'll export future Inngest functions
