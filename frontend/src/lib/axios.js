@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const Base_URL = import.meta.env.MODE === "development" ? "http://localhost:5000/api" : "https://syncly-backend-tan.vercel.app/api"
+const Base_URL = import.meta.env.MODE === "development" ? "http://localhost:5001/api" : "https://syncly-backend-tan.vercel.app/api"
 
  export const axiosInstance = axios.create({
     baseURL: Base_URL,
