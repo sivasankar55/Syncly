@@ -12,27 +12,26 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 // it also handles the disconnection when the user leaves the page
 
 export const useStreamChat = () => {
-    const { user } = useUser();
-    const [chatClient, setChatClient] = useState(null);
+    const { user } = useUser();// to get the current user
+    const [chatClient, setChatClient] = useState(null);// to store the stream chat client
   
     // fetch stream token using react-query
     const {
       data: tokenData,
-      isLoading: tokenLoading,
-      error: tokenError,
+      isLoading,
+      error,
     } = useQuery({
       queryKey: ["streamToken"],
-      queryFn: getStreamToken,
+      queryFn: getStreamToken,// get the stream token
       enabled: !!user?.id, // this will take the object and convert it to a boolean
     });
   
     // init stream chat client
-    // init stream chat client
     useEffect(() => {
       if (!tokenData?.token || !user?.id || !STREAM_API_KEY) return;
   
-      const client = StreamChat.getInstance(STREAM_API_KEY);
-      let cancelled = false;
+      const client = StreamChat.getInstance(STREAM_API_KEY);// to get the stream chat client
+      let cancelled = false;// to cancel the request
   
       const connect = async () => {
         try {
@@ -73,5 +72,5 @@ export const useStreamChat = () => {
       };
     }, [tokenData?.token, user?.id]);
   
-    return { chatClient, isLoading: tokenLoading, error: tokenError};
+    return { chatClient, isLoading, error};
   };
