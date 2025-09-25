@@ -35,6 +35,7 @@ export const useStreamChat = () => {
   
       const connect = async () => {
         try {
+          // Enable presence tracking
           await client.connectUser(
             {
               id: user.id,
@@ -47,6 +48,9 @@ export const useStreamChat = () => {
             },
             tokenData.token
           );
+          
+          // Presence is managed by Stream when `presence:true` is used and user is connected
+          
           if (!cancelled) {
             setChatClient(client);
           }
@@ -68,6 +72,7 @@ export const useStreamChat = () => {
       // cleanup
       return () => {
         cancelled = true;
+        // Disconnect user; Stream will update presence server-side
         client.disconnectUser();
       };
     }, [tokenData?.token, user?.id]);

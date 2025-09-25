@@ -109,7 +109,7 @@ const CreateChannelModal = ({ onClose}) => {
        channelData.visibility = "private";
       } else {
      channelData.visibility = "public";
-     channelData.discoverable = true; // to know the channel weather it is public or private
+     channelData.discoverable = true; // to make the channel discoverable by other users 
       }
 
       const channel = client.channel("messaging", channelId, channelData)

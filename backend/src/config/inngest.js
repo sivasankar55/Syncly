@@ -1,7 +1,7 @@
 import { connectDB } from "./db.js";
 import { Inngest } from "inngest";
 import {User} from "../models/user.model.js"
-import { deleteStreamUser, upsetStreamUser } from "./stream.js";
+import { addUserToPublicChannels, deleteStreamUser, upsetStreamUser } from "./stream.js";
 
 // Create a client to send and receive events
 export const inngest = new Inngest({ id: "Syncly" });
@@ -27,7 +27,8 @@ const syncUser = inngest.createFunction(
          id: newUser.clerkId.toString(),
          name: newUser.name,
          image: newUser.image,   
-        })
+        });
+        await addUserToPublicChannels(newUser.clerkId.toString());// to add the user to the public channel
     }
 );
 

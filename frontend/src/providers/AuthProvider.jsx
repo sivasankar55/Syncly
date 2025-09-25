@@ -16,7 +16,7 @@ export default function AuthProvider({children}) {
                 if(token) config.headers.Authorization = `Bearer ${token}`;
             }catch (error) {
                 if(error.message?. includes("auth") || error.message?.includes("token")){
-                   toast.error("Authentication issue, please refres the page");
+                   toast.error("Authentication issue, please refresh the page");
                 }
                 console.log("Error fetching token:", error);
             }
