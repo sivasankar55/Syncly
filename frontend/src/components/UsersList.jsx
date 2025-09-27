@@ -18,7 +18,10 @@ const UsersList = ({ activeChannel }) => {
       { name: 1 },
       { limit: 20 }
     );
-    return response.users;
+
+     const usersOnly = response.users.filter((user) => !user.id.startsWith("recording-"));// to remove the recording 
+
+    return usersOnly;
   }, [client]);
 
   const {
