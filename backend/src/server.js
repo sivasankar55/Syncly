@@ -10,7 +10,7 @@ import cors from "cors";
 import * as Sentry from "@sentry/node";
 
 const app = express();
-app.use(express.json());// Important: ensure you add JSON middleware to process incoming JSON POST payloads.
+app.use(express.json());// JSON middleware to process incoming JSON POST payloads.
 app.use(cors({origin: ENV.CLIENT_URL, credentials: true}));// Enable CORS
 app.use(clerkMiddleware()); // req.auth will be available in the request object.
 
