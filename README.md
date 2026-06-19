@@ -1,189 +1,276 @@
-
-
 # Syncly
 
-Syncly is a modern **real-time collaboration platform** that combines chat, video calls, and team management into a seamless experience. It’s designed for productivity, simplicity, and scalability — whether you’re working with a small team or running large-scale online communities.
+A real-time team collaboration platform that brings messaging, channels, and video calls into one seamless workspace. Built with modern, scalable web technologies and ready for production deployment.
 
 ---
 
-## 🚀 Features
+## Overview
 
-* **🔐 Authentication & Authorization**
+Syncly is a full-stack collaboration application designed for teams that need instant communication. Users authenticate securely, join public or private channels, exchange direct messages, start one-click video calls, and manage channel members — all powered by Stream's real-time Chat and Video APIs.
 
-  * Secure login/signup with [Clerk](https://clerk.com)
-  * JWT-based access & refresh tokens
-  * Global Axios interceptors for attaching tokens
-  * Automatic token refresh
-
-* **💬 Real-time Chat**
-
-  * Powered by [Stream Chat](https://getstream.io/chat/)
-  * Direct messages (DMs) and group channels
-  * Rich media support (pinned messages, attachments, emojis)
-  * Presence indicators (online/offline status)
-
-* **🎥 Video Calling**
-
-  * Seamless video meetings using [Stream Video SDK](https://getstream.io/video/)
-  * Join/leave call states
-  * Speaker layouts & call controls
-  * Secure room-based access with generated tokens
-
-* **📡 Error Handling & Monitoring**
-
-  * Integrated with [Sentry](https://sentry.io) for real-time error tracking
-  * Toast notifications for graceful error feedback
-
-* **⚡ Performance Optimizations**
-
-  * [TanStack Query](https://tanstack.com/query) for efficient server-state management
-  * Lazy loading routes for faster navigation
+The project is split into a React frontend and an Express backend, each configured for independent development and Vercel deployment.
 
 ---
 
-## 🛠️ Tech Stack
+## Features
 
-**Frontend:**
-
-* React + Vite
-* TailwindCSS
-* TanStack Query
-* Clerk (Authentication)
-* Stream Chat & Video SDKs
-* Sentry (Error Monitoring)
-
-**Backend:**
-
-* Node.js + Express
-* Clerk Middleware for auth
-* REST API endpoints for token generation
+- **Secure Authentication** — User sign-in, sign-up, and session management via Clerk, with JWT tokens attached automatically to API requests.
+- **Real-time Messaging** — Public and private channels, direct messages, unread badges, presence indicators, pinned messages, and invites powered by Stream Chat.
+- **Video Calls** — Room-based video calls with speaker layout and call controls using the Stream Video SDK.
+- **User Management** — Automatic user provisioning, stream user synchronization, and cleanup via Clerk webhooks handled by Inngest.
+- **Error Monitoring** — Sentry integration on both frontend and backend for real-time error tracking and performance monitoring.
+- **Responsive UI** — TailwindCSS-based styling with custom Stream Chat theme overrides.
 
 ---
 
-## 🧩 Project Workflow
+## Tech Stack
 
-1. **Authentication Setup**
+### Frontend
 
-   * Clerk integrated for user management
-   * Global Axios interceptor ensures tokens are attached to each API call
+| Technology | Purpose |
+| --- | --- |
+| React 19 | UI library |
+| Vite 7 | Build tool and dev server |
+| TailwindCSS 4 | Utility-first styling |
+| React Router 7 | Client-side routing |
+| TanStack Query 5 | Server-state management |
+| Clerk React | Authentication |
+| Stream Chat React | Chat UI components |
+| Stream Video React SDK | Video call UI |
+| Sentry React | Error & performance monitoring |
+| Axios | HTTP client |
+| Lucide React | Icons |
 
-2. **Chat Integration**
+### Backend
 
-   * Users can join or create channels
-   * Channel headers display metadata (pinned messages, members, invite modal)
-   * Custom channel previews and member lists
-
-3. **Video Call Setup**
-
-   * Calls are protected via backend-generated tokens
-   * Stream Video client handles joining/leaving states
-   * UI includes controls like mute/unmute, screen share, and leave
-
-4. **Error Monitoring & Logging**
-
-   * Sentry tracks frontend issues in real-time
-   * Custom toast messages provide instant feedback to users
+| Technology | Purpose |
+| --- | --- |
+| Node.js | Runtime |
+| Express 5 | Web framework |
+| Mongoose | MongoDB ODM |
+| Clerk Express | Authentication middleware |
+| Stream Chat | Chat backend & token generation |
+| Inngest | Async event handling |
+| Sentry Node | Error & performance monitoring |
+| CORS | Cross-origin requests |
 
 ---
 
-## 📦 Installation & Setup
+## Project Structure
 
-### Prerequisites
+```
+Syncly/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # DB, env, Inngest, Stream, Sentry
+│   │   ├── controllers/     # Route handlers
+│   │   ├── middleware/      # Auth middleware
+│   │   ├── models/          # Mongoose models
+│   │   ├── routes/          # API route definitions
+│   │   └── server.js        # Application entry point
+│   ├── .env                 # Backend environment variables
+│   ├── instrument.mjs       # Sentry initialization
+│   ├── package.json
+│   └── vercel.json          # Vercel deployment config
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # UI components (modals, headers, lists)
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── lib/             # API helpers and Axios config
+│   │   ├── pages/           # Auth, Home, Call pages
+│   │   ├── providers/       # Auth provider
+│   │   ├── styles/          # Custom CSS
+│   │   ├── App.jsx          # Route setup
+│   │   └── main.jsx         # Application entry point
+│   ├── .env                 # Frontend environment variables
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── vercel.json          # Vercel deployment config
+└── README.md
+```
 
-* Node.js >= 18
-* npm or yarn
-* Stream API Key & Secret
-* Clerk project setup
+---
 
-### Clone & Install
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) >= 18
+- npm (bundled with Node.js)
+- A [Clerk](https://clerk.com) account and application
+- A [Stream](https://getstream.io) account and application
+- A [MongoDB](https://mongodb.com) database URI
+- A [Sentry](https://sentry.io) project DSN (optional, but recommended)
+- An [Inngest](https://inngest.com) account with event and signing keys (for Clerk webhooks)
+
+---
+
+## Setup
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/sivasankar55/syncly.git
 cd syncly
+```
+
+### 2. Install backend dependencies
+
+```bash
+cd backend
 npm install
 ```
 
-### Configure Environment Variables
+### 3. Install frontend dependencies
 
-Create a `.env` file in the root directory:
-
-```env
-# Clerk
-CLERK_API_KEY=your_clerk_api_key
-CLERK_SECRET_KEY=your_clerk_secret
-
-# Stream
-STREAM_API_KEY=your_stream_api_key
-STREAM_API_SECRET=your_stream_api_secret
-
-# Backend
-PORT=5000
+```bash
+cd ../frontend
+npm install
 ```
 
-### Run the App
+---
 
-**Start Backend**
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+```env
+PORT=5001
+MONGO_URI=your_mongodb_connection_string
+NODE_ENV=development
+
+CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+
+STREAM_API_KEY=...
+STREAM_API_SECRET=...
+
+SENTRY_DSN=https://...@sentry.io/...
+
+INNGEST_EVENT_KEY=...
+INNGEST_SIGNING_KEY=signkey-...
+
+CLIENT_URL=http://localhost:5173
+```
+
+### Frontend (`frontend/.env`)
+
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
+VITE_STREAM_API_KEY=...
+VITE_SENTRY_DSN=https://...@sentry.io/...
+VITE_API_BASE_URL=http://localhost:5001/api
+```
+
+> **Note:** The frontend `.env` must use `VITE_` prefixes so variables are exposed to the client at build time. Never commit real `.env` files to version control.
+
+---
+
+## Running Locally
+
+### Start the backend
 
 ```bash
 cd backend
 npm run dev
 ```
 
-**Start Frontend**
+The server will start on `http://localhost:5001` by default.
+
+### Start the frontend
+
+In a new terminal:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+The Vite dev server will start on `http://localhost:5173` by default.
+
+Open `http://localhost:5173` in your browser to use the app.
 
 ---
 
-## 📖 Usage
+## API Reference
 
-1. **Sign Up / Login**
-
-   * Use Clerk’s secure authentication flow
-
-2. **Join or Create Channels**
-
-   * Start chatting with individuals or groups
-   * Pin messages or invite new members
-
-3. **Start a Video Call**
-
-   * Enter a call room
-   * Collaborate in real-time with audio/video features
-
-4. **Error Monitoring**
-
-   * Errors are logged via Sentry for developers
-   * Users see friendly toast messages
+| Method | Endpoint | Description | Auth |
+| --- | --- | --- | --- |
+| GET | `/` | Health check / Hello World | Public |
+| GET | `/api/chat/token` | Returns a Stream Chat token for the authenticated user | Protected |
+| GET/POST | `/api/inngest` | Inngest event handler for Clerk webhooks | Public (Inngest-signed) |
+| GET | `/debug-sentry` | Test endpoint for Sentry integration | Public |
 
 ---
 
-## 🗺️ Roadmap
+## Webhooks & Async Jobs
 
-* [ ] File sharing in chat
-* [ ] Whiteboard collaboration during calls
-* [ ] Admin/moderator role support
-* [ ] Mobile responsive PWA
+Syncly uses Inngest to handle Clerk lifecycle events asynchronously:
 
----
+| Event | Function | Behavior |
+| --- | --- | --- |
+| `clerk/user.created` | `sync-user` | Creates a user record in MongoDB, upserts the user in Stream, and adds them to all discoverable public channels. |
+| `clerk/user.deleted` | `delete-user-from-db` | Removes the user record from MongoDB and deletes the Stream user. |
 
-## 🤝 Contributing
-
-Contributions are welcome!
-
-1. Fork the repo
-2. Create a new branch (`git checkout -b feature-xyz`)
-3. Commit changes (`git commit -m 'Add feature xyz'`)
-4. Push to branch (`git push origin feature-xyz`)
-5. Create a Pull Request
+Configure these events in your Clerk dashboard to send to your Inngest webhook URL (e.g., `https://your-app.com/api/inngest`).
 
 ---
 
-## 📜 License
+## Deployment
 
-This project is licensed under the **MIT License**.
+Both the frontend and backend are configured for Vercel.
+
+### Backend
+
+The `backend/vercel.json` uses `@vercel/node` and routes all requests to `src/server.js`.
+
+### Frontend
+
+The `frontend/vercel.json` rewrites all routes to `index.html` so React Router handles client-side navigation.
+
+To deploy, push the respective folders to Vercel or connect them as separate Vercel projects.
+
+---
+
+## Monitoring
+
+- **Sentry** is initialized in both frontend (`main.jsx`) and backend (`instrument.mjs`) to capture errors, trace transactions, and monitor performance.
+- **React Hot Toast** provides user-friendly toast notifications for authentication and call errors.
+
+---
+
+## Available Scripts
+
+### Backend
+
+```bash
+npm run dev      # Start development server with nodemon
+npm run start    # Start production server with node
+```
+
+### Frontend
+
+```bash
+npm run dev      # Start Vite dev server
+npm run build    # Build for production
+npm run preview  # Preview production build locally
+npm run lint     # Run ESLint
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. To propose a change:
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/your-feature-name`.
+3. Commit your changes with clear messages.
+4. Push the branch and open a Pull Request.
+
+Please ensure the code follows the existing structure and passes linting before submitting.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
