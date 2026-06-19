@@ -11,19 +11,7 @@ import * as Sentry from "@sentry/node";
 
 const app = express();
 app.use(express.json());// JSON middleware to process incoming JSON POST payloads.
-const allowedOrigins = ENV.CLIENT_URL ? ENV.CLIENT_URL.split(",").map((url) => url.trim()) : [];
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+app.use(cors({origin: ENV.CLIENT_URL, credentials: true}));// Enable CORS
 app.use(clerkMiddleware()); // req.auth will be available in the request object.
 
 app.get("/debug-sentry", (req,res) => {
