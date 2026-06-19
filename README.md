@@ -149,7 +149,7 @@ SENTRY_DSN=https://...@sentry.io/...
 INNGEST_EVENT_KEY=...
 INNGEST_SIGNING_KEY=signkey-...
 
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=http://localhost:5173,https://syncly-frontend.vercel.app
 ```
 
 ### Frontend (`frontend/.env`)
@@ -161,7 +161,7 @@ VITE_SENTRY_DSN=https://...@sentry.io/...
 VITE_API_BASE_URL=http://localhost:5001/api
 ```
 
-> **Note:** The frontend `.env` must use `VITE_` prefixes so variables are exposed to the client at build time. Never commit real `.env` files to version control.
+> **Note:** `CLIENT_URL` supports multiple origins as a comma-separated list. Include both your local dev URL and deployed frontend URL (e.g., `https://syncly-frontend.vercel.app`). Never commit real `.env` files to version control.
 
 ---
 
