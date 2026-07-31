@@ -33,7 +33,6 @@ Built on an event-driven Node backend with serverless-safe Express, Clerk-issued
 - [API surface](#api-surface)
 - [Async jobs](#async-jobs)
 - [Deployment](#deployment)
-- [Known limitations](#known-limitations)
 - [Project structure](#project-structure)
 - [License](#license)
 
@@ -264,11 +263,3 @@ Syncly/
 
 ---
 
-## License
-
-<!-- TODO: README previously claimed MIT, but no LICENSE file exists and
-     backend/package.json declares "ISC". Add a LICENSE file and make the
-     three sources agree — an unlicensed public repo is legally "all rights
-     reserved", which discourages reuse. -->
-
-Not yet licensed. See TODO above.
