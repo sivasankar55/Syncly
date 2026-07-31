@@ -1,142 +1,171 @@
+<div align="center">
+
+<img src="frontend/public/logo.png" alt="Syncly" width="72" />
+
 # Syncly
 
-A real-time team collaboration platform that brings messaging, channels, and video calls into one seamless workspace. Built with modern, scalable web technologies and ready for production deployment.
+**Real-time team messaging and video calling — Slack-style channels, DMs, and one-tap calls.**
+
+Built on an event-driven Node backend with serverless-safe Express, Clerk-issued JWTs, and Stream's Chat/Video infrastructure.
+
+[![React](https://img.shields.io/badge/React-19-087EA4?logo=react&logoColor=white)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![Node](https://img.shields.io/badge/Node-%3E%3D18-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](https://mongodb.com)
+[![Deploy](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com)
+
+<!-- TODO: Add live demo + walkthrough once deployment URLs are confirmed public -->
+<!-- [**Live Demo**](TODO) · [**Video Walkthrough**](TODO) -->
+
+</div>
 
 ---
 
-## Overview
+## Contents
 
-Syncly is a full-stack collaboration application designed for teams that need instant communication. Users authenticate securely, join public or private channels, exchange direct messages, start one-click video calls, and manage channel members — all powered by Stream's real-time Chat and Video APIs.
-
-The project is split into a React frontend and an Express backend, each configured for independent development and Vercel deployment.
-
----
-
-## Features
-
-- **Secure Authentication** — User sign-in, sign-up, and session management via Clerk, with JWT tokens attached automatically to API requests.
-- **Real-time Messaging** — Public and private channels, direct messages, unread badges, presence indicators, pinned messages, and invites powered by Stream Chat.
-- **Video Calls** — Room-based video calls with speaker layout and call controls using the Stream Video SDK.
-- **User Management** — Automatic user provisioning, stream user synchronization, and cleanup via Clerk webhooks handled by Inngest.
-- **Error Monitoring** — Sentry integration on both frontend and backend for real-time error tracking and performance monitoring.
-- **Responsive UI** — TailwindCSS-based styling with custom Stream Chat theme overrides.
+- [What it does](#what-it-does)
+- [Architecture](#architecture)
+- [Engineering decisions](#engineering-decisions)
+- [Tech stack](#tech-stack)
+- [Local development](#local-development)
+- [Configuration](#configuration)
+- [API surface](#api-surface)
+- [Async jobs](#async-jobs)
+- [Deployment](#deployment)
+- [Known limitations](#known-limitations)
+- [Project structure](#project-structure)
+- [License](#license)
 
 ---
 
-## Tech Stack
+## What it does
 
-### Frontend
+Syncly is a full-stack workspace chat app. Users sign in with Clerk, land in every public channel automatically, and can create channels, DM teammates, pin messages, invite members to private rooms, and jump into a video call from any channel.
 
-| Technology | Purpose |
+| Capability | Implementation |
 | --- | --- |
-| React 19 | UI library |
-| Vite 7 | Build tool and dev server |
-| TailwindCSS 4 | Utility-first styling |
-| React Router 7 | Client-side routing |
-| TanStack Query 5 | Server-state management |
-| Clerk React | Authentication |
-| Stream Chat React | Chat UI components |
-| Stream Video React SDK | Video call UI |
-| Sentry React | Error & performance monitoring |
-| Axios | HTTP client |
-| Lucide React | Icons |
+| **Auth** | Clerk-hosted sign-in/sign-up. A React `AuthProvider` installs an Axios request interceptor that attaches the Clerk JWT as a `Bearer` token on every API call. |
+| **Channels** | Public (`discoverable: true`) and private (`private: true`) channels. Channel IDs are slugified from the display name and capped at 20 chars. |
+| **Direct messages** | Rendered from the same Stream channel list, separated from channels by a member-count + Clerk-ID-prefix heuristic. |
+| **Video calls** | Stream Video SDK with `SpeakerLayout` + `CallControls`. Starting a call posts a joinable `/call/:id` link into the channel, so the call is discoverable to everyone in the room. |
+| **Presence & unread** | Stream-managed presence via `options: { presence: true }` on the channel list; unread counts from `channel.countUnread()`. |
+| **User provisioning** | Clerk lifecycle webhooks fan out through Inngest to Mongo + Stream (see [Async jobs](#async-jobs)). |
+| **Observability** | Sentry on both runtimes, with React Router v7 browser tracing and Express error capture. Stream connection failures are tagged and reported manually. |
 
-### Backend
-
-| Technology | Purpose |
-| --- | --- |
-| Node.js | Runtime |
-| Express 5 | Web framework |
-| Mongoose | MongoDB ODM |
-| Clerk Express | Authentication middleware |
-| Stream Chat | Chat backend & token generation |
-| Inngest | Async event handling |
-| Sentry Node | Error & performance monitoring |
-| CORS | Cross-origin requests |
+<!-- TODO: Add 2-3 screenshots or a short GIF (channel view, call view, create-channel modal).
+     Recruiters spend <30s on a README — visuals do more work than prose. -->
 
 ---
 
-## Project Structure
+## Architecture
+
+Two independently deployed apps. The backend is deliberately thin: it never proxies messages. It issues short-lived Stream tokens and lets the client talk to Stream directly, so chat traffic never passes through — or is bottlenecked by — the Express layer.
+
+```mermaid
+flowchart LR
+    subgraph Client["Frontend · Vercel"]
+        R[React 19 + Vite]
+        SC[Stream Chat / Video SDK]
+    end
+
+    subgraph API["Backend · Vercel Serverless"]
+        EX[Express 5]
+        MW[Clerk middleware → protectRoute]
+        IN[Inngest handler]
+    end
+
+    CLERK[Clerk]
+    STREAM[(Stream Chat + Video)]
+    MONGO[(MongoDB Atlas)]
+
+    R -->|1. Sign in| CLERK
+    R -->|2. GET /api/chat/token<br/>Bearer JWT| MW
+    MW --> EX
+    EX -->|3. createToken · server-side secret| STREAM
+    EX -->|4. Stream token| R
+    SC <-->|5. Messages, presence, calls<br/>direct connection| STREAM
+
+    CLERK -->|user.created / user.deleted| IN
+    IN --> MONGO
+    IN --> STREAM
+```
+
+### Token exchange
+
+The `STREAM_API_SECRET` never reaches the browser. The client authenticates to Clerk, exchanges that JWT for a Stream token at `/api/chat/token`, and uses it to open its own realtime connection.
 
 ```
-Syncly/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # DB, env, Inngest, Stream, Sentry
-│   │   ├── controllers/     # Route handlers
-│   │   ├── middleware/      # Auth middleware
-│   │   ├── models/          # Mongoose models
-│   │   ├── routes/          # API route definitions
-│   │   └── server.js        # Application entry point
-│   ├── .env                 # Backend environment variables
-│   ├── instrument.mjs       # Sentry initialization
-│   ├── package.json
-│   └── vercel.json          # Vercel deployment config
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # UI components (modals, headers, lists)
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── lib/             # API helpers and Axios config
-│   │   ├── pages/           # Auth, Home, Call pages
-│   │   ├── providers/       # Auth provider
-│   │   ├── styles/          # Custom CSS
-│   │   ├── App.jsx          # Route setup
-│   │   └── main.jsx         # Application entry point
-│   ├── .env                 # Frontend environment variables
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── vercel.json          # Vercel deployment config
-└── README.md
+Clerk session JWT  →  clerkMiddleware()  →  protectRoute()  →  streamClient.createToken(userId)  →  client
 ```
 
 ---
 
-## Prerequisites
+## Engineering decisions
 
-- [Node.js](https://nodejs.org/) >= 18
-- npm (bundled with Node.js)
-- A [Clerk](https://clerk.com) account and application
-- A [Stream](https://getstream.io) account and application
-- A [MongoDB](https://mongodb.com) database URI
-- A [Sentry](https://sentry.io) project DSN (optional, but recommended)
-- An [Inngest](https://inngest.com) account with event and signing keys (for Clerk webhooks)
+Choices worth calling out, and why they were made:
+
+**Serverless-safe Express.** `app.listen()` is guarded behind `NODE_ENV !== "production"` and the app is exported as the module default, so the same entry point runs under `nodemon` locally and as a Vercel serverless function in production without a separate handler file.
+
+**Database connection inside each job.** Inngest functions call `connectDB()` at the top of every invocation rather than relying on module-level state, because serverless cold starts give no guarantee that a prior connection survived.
+
+**Direct client↔Stream connection.** Routing messages through Express would add latency, cost, and a scaling bottleneck for zero benefit. The backend's only job in the chat path is minting a token.
+
+**Webhooks handled asynchronously.** Clerk's `user.created` triggers three side effects (Mongo insert, Stream upsert, public-channel backfill). Running these through Inngest rather than a synchronous webhook handler means Clerk gets a fast ack and the work is retried on failure instead of silently lost.
+
+**Instrumentation loaded before the app.** Sentry is imported via `--import ./instrument.mjs` so its auto-instrumentation patches modules before Express and Mongoose are required — the ordering most Sentry/Node setups get wrong.
 
 ---
 
-## Setup
+## Tech stack
 
-### 1. Clone the repository
+**Frontend** — React 19 · Vite 7 · TailwindCSS 4 · React Router 7 · TanStack Query 5 · Clerk React · Stream Chat React 13 · Stream Video React SDK · Sentry React · Axios · Lucide
+
+**Backend** — Node.js ≥18 (ESM) · Express 5 · Mongoose 8 / MongoDB · Clerk Express · Stream Chat 8 · Inngest 3 · Sentry Node
+
+---
+
+## Local development
+
+**Prerequisites:** Node ≥ 18, plus accounts for [Clerk](https://clerk.com), [Stream](https://getstream.io), [MongoDB](https://mongodb.com), and optionally [Sentry](https://sentry.io) and [Inngest](https://inngest.com).
 
 ```bash
-git clone https://github.com/sivasankar55/syncly.git
-cd syncly
+git clone https://github.com/sivasankar55/Syncly.git
+cd Syncly
+
+# Terminal 1 — API on :5001
+cd backend && npm install && npm run dev
+
+# Terminal 2 — app on :5173
+cd frontend && npm install && npm run dev
 ```
 
-### 2. Install backend dependencies
+Open <http://localhost:5173>.
 
-```bash
-cd backend
-npm install
-```
+| | Backend | Frontend |
+| --- | --- | --- |
+| Dev | `npm run dev` (nodemon + Sentry) | `npm run dev` |
+| Build | — | `npm run build` |
+| Preview | `npm start` | `npm run preview` |
+| Lint | <!-- TODO: no linter configured --> — | `npm run lint` |
 
-### 3. Install frontend dependencies
-
-```bash
-cd ../frontend
-npm install
-```
+<!-- TODO: No test suite or CI pipeline exists yet. This is the single highest-value
+     addition for engineering credibility — even a handful of integration tests on
+     the token endpoint plus a GitHub Actions lint/build workflow. -->
 
 ---
 
-## Environment Variables
+## Configuration
 
-### Backend (`backend/.env`)
+Both apps read from a local `.env`. Neither file is committed.
+
+<details>
+<summary><strong>backend/.env</strong></summary>
 
 ```env
 PORT=5001
-MONGO_URI=your_mongodb_connection_string
 NODE_ENV=development
+MONGO_URI=mongodb+srv://...
 
 CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
@@ -144,133 +173,102 @@ CLERK_SECRET_KEY=sk_...
 STREAM_API_KEY=...
 STREAM_API_SECRET=...
 
-SENTRY_DSN=https://...@sentry.io/...
-
 INNGEST_EVENT_KEY=...
 INNGEST_SIGNING_KEY=signkey-...
 
-CLIENT_URL=http://localhost:5173,https://syncly-frontend.vercel.app
+SENTRY_DSN=https://...@sentry.io/...
+
+# Single origin. Passed directly to the cors() middleware.
+CLIENT_URL=http://localhost:5173
 ```
 
-### Frontend (`frontend/.env`)
+</details>
+
+<details>
+<summary><strong>frontend/.env</strong></summary>
 
 ```env
 VITE_CLERK_PUBLISHABLE_KEY=pk_...
 VITE_STREAM_API_KEY=...
-VITE_SENTRY_DSN=https://...@sentry.io/...
 VITE_API_BASE_URL=http://localhost:5001/api
+VITE_SENTRY_DSN=https://...@sentry.io/...
 ```
 
-> **Note:** `CLIENT_URL` supports multiple origins as a comma-separated list. Include both your local dev URL and deployed frontend URL (e.g., `https://syncly-frontend.vercel.app`). Never commit real `.env` files to version control.
+</details>
+
+> `CLIENT_URL` accepts **one** origin — it is handed straight to `cors({ origin })`. Multi-origin support was implemented and then reverted (`33a8e3e`); deployed environments set this to the production frontend URL.
+
+<!-- TODO: Commit `.env.example` files for both apps so contributors get the schema
+     without a README round-trip. -->
 
 ---
 
-## Running Locally
+## API surface
 
-### Start the backend
-
-```bash
-cd backend
-npm run dev
-```
-
-The server will start on `http://localhost:5001` by default.
-
-### Start the frontend
-
-In a new terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-The Vite dev server will start on `http://localhost:5173` by default.
-
-Open `http://localhost:5173` in your browser to use the app.
-
----
-
-## API Reference
-
-| Method | Endpoint | Description | Auth |
+| Method | Endpoint | Auth | Description |
 | --- | --- | --- | --- |
-| GET | `/` | Health check / Hello World | Public |
-| GET | `/api/chat/token` | Returns a Stream Chat token for the authenticated user | Protected |
-| GET/POST | `/api/inngest` | Inngest event handler for Clerk webhooks | Public (Inngest-signed) |
-| GET | `/debug-sentry` | Test endpoint for Sentry integration | Public |
+| `GET` | `/api/chat/token` | Clerk JWT | Mints a Stream token scoped to the authenticated user. |
+| `GET`/`POST`/`PUT` | `/api/inngest` | Inngest signature | Serves registered Inngest functions. |
+| `GET` | `/` | Public | Liveness probe. <!-- TODO: returns "Hello World" — return `{ status, uptime }` and verify the DB connection instead. --> |
+| `GET` | `/debug-sentry` | Public | Throws deliberately to verify Sentry wiring. <!-- TODO: guard behind NODE_ENV !== production or delete before a real launch. --> |
 
 ---
 
-## Webhooks & Async Jobs
+## Async jobs
 
-Syncly uses Inngest to handle Clerk lifecycle events asynchronously:
+Clerk lifecycle events are delivered to Inngest, which runs them with automatic retries.
 
-| Event | Function | Behavior |
+| Event | Function | Effect |
 | --- | --- | --- |
-| `clerk/user.created` | `sync-user` | Creates a user record in MongoDB, upserts the user in Stream, and adds them to all discoverable public channels. |
-| `clerk/user.deleted` | `delete-user-from-db` | Removes the user record from MongoDB and deletes the Stream user. |
+| `clerk/user.created` | `sync-user` | Inserts the user into MongoDB, upserts them into Stream, and adds them to every channel marked `discoverable: true`. |
+| `clerk/user.deleted` | `delete-user-from-db` | Deletes the Mongo record and the Stream user. |
 
-Configure these events in your Clerk dashboard to send to your Inngest webhook URL (e.g., `https://your-app.com/api/inngest`).
+Point your Clerk webhook endpoint at `https://<your-api-host>/api/inngest`.
 
 ---
 
 ## Deployment
 
-Both the frontend and backend are configured for Vercel.
+Both apps deploy to Vercel as **separate projects** rooted at `backend/` and `frontend/`.
 
-### Backend
+- **Backend** — `backend/vercel.json` builds `src/server.js` with `@vercel/node` and routes all traffic to it. `NODE_ENV=production` is set at build time, which is what suppresses `app.listen()`.
+- **Frontend** — `frontend/vercel.json` rewrites every path to `/` so React Router owns client-side navigation on deep links and refreshes.
 
-The `backend/vercel.json` uses `@vercel/node` and routes all requests to `src/server.js`.
+After deploying, set `CLIENT_URL` on the backend to the frontend's production origin and `VITE_API_BASE_URL` on the frontend to the backend's `/api` origin.
 
-### Frontend
 
-The `frontend/vercel.json` rewrites all routes to `index.html` so React Router handles client-side navigation.
+## Project structure
 
-To deploy, push the respective folders to Vercel or connect them as separate Vercel projects.
-
----
-
-## Monitoring
-
-- **Sentry** is initialized in both frontend (`main.jsx`) and backend (`instrument.mjs`) to capture errors, trace transactions, and monitor performance.
-- **React Hot Toast** provides user-friendly toast notifications for authentication and call errors.
-
----
-
-## Available Scripts
-
-### Backend
-
-```bash
-npm run dev      # Start development server with nodemon
-npm run start    # Start production server with node
 ```
-
-### Frontend
-
-```bash
-npm run dev      # Start Vite dev server
-npm run build    # Build for production
-npm run preview  # Preview production build locally
-npm run lint     # Run ESLint
+Syncly/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # env, db, stream, inngest
+│   │   ├── controllers/     # chat.controller.js
+│   │   ├── middleware/      # protectRoute
+│   │   ├── models/          # user.model.js
+│   │   ├── routes/          # chat.route.js
+│   │   └── server.js        # app entry, exported for serverless
+│   ├── instrument.mjs       # Sentry, loaded via --import
+│   └── vercel.json
+└── frontend/
+    ├── public/
+    └── src/
+        ├── components/      # modals, channel header/preview, user list
+        ├── hooks/           # useStreamChat — token fetch + client lifecycle
+        ├── lib/             # axios instance, API calls
+        ├── pages/           # AuthPage, HomePage, CallPage
+        ├── providers/       # AuthProvider — JWT interceptor
+        └── styles/          # Stream Chat theme overrides
 ```
-
----
-
-## Contributing
-
-Contributions are welcome. To propose a change:
-
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/your-feature-name`.
-3. Commit your changes with clear messages.
-4. Push the branch and open a Pull Request.
-
-Please ensure the code follows the existing structure and passes linting before submitting.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+<!-- TODO: README previously claimed MIT, but no LICENSE file exists and
+     backend/package.json declares "ISC". Add a LICENSE file and make the
+     three sources agree — an unlicensed public repo is legally "all rights
+     reserved", which discourages reuse. -->
+
+Not yet licensed. See TODO above.
